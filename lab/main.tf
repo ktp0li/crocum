@@ -92,6 +92,7 @@ resource "opennebula_virtual_machine" "r1" {
     ip              = "192.168.7.1"
     security_groups = resource.opennebula_virtual_network.lan1.security_groups
   }
+  depends_on = [opennebula_virtual_network_address_range.srv-lan-gw, opennebula_virtual_network_address_range.lan1-gw]
 }
 
 resource "opennebula_virtual_machine" "srv" {
@@ -103,7 +104,7 @@ resource "opennebula_virtual_machine" "srv" {
     ip              = "192.168.13.${count.index + 10}"
     security_groups = resource.opennebula_virtual_network.lan1.security_groups
   }
-depends_on = [opennebula_virtual_machine.r1]
+  depends_on = [opennebula_virtual_machine.r1, opennebula_virtual_network_address_range.srv-lan]
 }
 
 resource "opennebula_virtual_machine" "pc" {
@@ -114,5 +115,5 @@ resource "opennebula_virtual_machine" "pc" {
     ip              = "192.168.7.10"
     security_groups = resource.opennebula_virtual_network.lan1.security_groups
   }
-depends_on = [opennebula_virtual_machine.r1]
+  depends_on = [opennebula_virtual_machine.r1, opennebula_virtual_network_address_range.lan1]
 }
