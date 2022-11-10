@@ -22,6 +22,9 @@ variable "user-id" {
 data "opennebula_virtual_network" "nat" {
   name = "NAT"
 }
+data "opennebula_virtual_network" "man" {
+  name = "management"
+}
 
 resource "opennebula_virtual_network" "srv-lan" {
   name              = format("%s-%s", var.user-id, "lab1-srv-lan")
@@ -83,6 +86,9 @@ resource "opennebula_virtual_machine" "r1" {
     network_id = data.opennebula_virtual_network.nat.id
   }
   nic {
+    network_id = data.opennebula_virtual_network.man.id
+  }
+  nic {
     network_id      = resource.opennebula_virtual_network.srv-lan.id
     ip              = "192.168.13.1"
     security_groups = resource.opennebula_virtual_network.srv-lan.security_groups
@@ -100,6 +106,9 @@ resource "opennebula_virtual_machine" "srv" {
   name        = format("%s-%s", var.user-id, "lab1-srv${count.index + 1}")
   template_id = data.opennebula_template.deb.id
   nic {
+    network_id = data.opennebula_virtual_network.man.id
+  }
+  nic {
     network_id      = resource.opennebula_virtual_network.srv-lan.id
     ip              = "192.168.13.${count.index + 10}"
     security_groups = resource.opennebula_virtual_network.lan1.security_groups
@@ -110,6 +119,9 @@ resource "opennebula_virtual_machine" "srv" {
 resource "opennebula_virtual_machine" "pc" {
   name        = format("%s-%s", var.user-id, "lab1-pc")
   template_id = data.opennebula_template.deb.id
+  nic {
+    network_id = data.opennebula_virtual_network.man.id
+  }
   nic {
     network_id      = resource.opennebula_virtual_network.lan1.id
     ip              = "192.168.7.10"
