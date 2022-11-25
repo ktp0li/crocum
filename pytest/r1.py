@@ -39,6 +39,6 @@ def test_dhcprelay_running_and_enabled(host):
 
 
 def test_dhcprelay_listening_ifaces(host):
-    dhcp_serv = "192.168.13.10"
+    dhcp_serv = "192.168.13.11"
     conf = host.file("/etc/default/isc-dhcp-server")
     assert (conf.contains(f'SERVERS="{dhcp_serv}"'))
