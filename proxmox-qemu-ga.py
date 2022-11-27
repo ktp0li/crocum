@@ -1,7 +1,14 @@
-import os
+import argparse
 import socket
 import base64
 import json
+parser = argparse.ArgumentParser(
+        description='qemu-guest-agent file-* commands wrapper')
+parser.add_argument('-f', '--file', type=str, help='remote file path')
+parser.add_argument('filename', nargs='?')
+parser.add_argument('-e', '--execute', type=str, help='execute command')
+args = parser.parse_args()
+
 client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 client.connect("/var/run/qemu-server/101.qga")
 test = "/tmp/test.py"
@@ -33,6 +40,13 @@ def close_file(handle):
     print(client.recv(2048).decode())
 
 
-handle = open_file(test)
-write_file(handle, str(file)[1:])
-close_file(handle)
+if args.file:
+    path = args.file
+    handle = open_file(path)
+    write_file(handle, str(file)[1:])
+    close_file(handle)
+
+if args.execute:
+    command = args.execute.split()[0]
+    flags = args.execute.split()[1:]
+    print(command, flags)
