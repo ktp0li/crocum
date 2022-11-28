@@ -2,6 +2,7 @@ import argparse
 import socket
 import base64
 import json
+import os
 
 
 def connect_to_socket(vm_id):
@@ -50,7 +51,12 @@ def execute_status(client, pid):
 
 
 def qemu_write_file(args):
-    file = base64.b64encode(bytes(open('pytest/r1.py').read(), 'utf-8'))
+    if args.host_file[0] == '/':
+        host_file = args.host_file
+    else:
+        host_file = f'{os.path.dirname(os.path.realpath(__file__))}\
+/{args.host_file}'
+    file = base64.b64encode(bytes(open(host_file).read(), 'utf-8'))
     client = connect_to_socket(args.vm_id)
     path = args.remote_file
     handle = open_file(client, path)
