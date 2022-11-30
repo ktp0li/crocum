@@ -4,6 +4,7 @@ import json
 import base64
 import argparse
 import os
+import time
 
 
 def connect_to_vm(id):
@@ -20,10 +21,17 @@ def exec_command(args):
     dom = connect_to_vm(args.vm_id)
     exec = libvirt_qemu.qemuAgentCommand(dom, json.dumps(
         {'execute': 'guest-exec', 'arguments':
-         {'path': command, 'arg': flags, 'capture-output': True}}), 30, 0)
+         {'path': command, 'arg': flags, 'capture-output': True}}), 60, 0)
     exec_status = libvirt_qemu.qemuAgentCommand(dom, json.dumps(
         {'execute': 'guest-exec-status', 'arguments':
-         {'pid': json.loads(exec)['return']['pid']}}), 30, 0)
+         {'pid': json.loads(exec)['return']['pid']}}), 60, 0)
+    while not (json.loads(exec_status)['return']['exited']):
+        print('please wait...')
+        time.sleep(2)
+        exec_status = libvirt_qemu.qemuAgentCommand(dom, json.dumps(
+            {'execute': 'guest-exec-status', 'arguments':
+             {'pid': json.loads(exec)['return']['pid']}}), 60, 0)
+
     print('exitcode:', json.loads(exec_status)['return']['exitcode'])
     print(base64.b64decode(json.loads(exec_status)
                            ['return']['out-data'])[:-1].decode())
