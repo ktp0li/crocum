@@ -38,7 +38,11 @@ def test_dhcprelay_running_and_enabled(host):
     assert (dhcp.is_running and dhcp.is_enabled)
 
 
-def test_dhcprelay_listening_ifaces(host):
+def test_dhcprelay_dhcp_servers(host):
     dhcp_serv = "192.168.13.11"
-    conf = host.file("/etc/default/isc-dhcp-server")
-    assert (conf.contains(f'SERVERS="{dhcp_serv}"'))
+    conf = host.file("/etc/default/isc-dhcp-relay")
+    assert (conf.contains(f'^SERVERS="{dhcp_serv}"$'))
+
+def test_dhcprelay_listening_ifaces(host):
+    conf = host.file("/etc/default/isc-dhcp-relay")
+    assert (conf.contains(r'^INTERFACES="ens19\|ens20 ens19\|ens20"$'))
