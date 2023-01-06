@@ -1,62 +1,43 @@
+#!/usr/bin/env python3
 import libvirt
 import libvirt_qemu
 import json
 import base64
 import argparse
-import os
 import time
 
 
-def connect_to_vm(id):
-    conn = libvirt.open()
-    return conn.lookupByID(id)
+def send_command(command, arguments):
+    dom = libvirt.open().lookupByName(f'one-{args.vm_id}')
+    cmd = libvirt_qemu.qemuAgentCommand(dom, json.dumps(
+        {'execute': command, 'arguments': arguments}), 30, 0)
+    return json.loads(cmd)['return']
 
 
 def exec_command(args):
-    flags = []
-    command = args.command
-    if len(command.split()) > 1:
-        flags = command.split()[1:]
-        command = command.split()[0]
-    dom = connect_to_vm(args.vm_id)
-    exec = libvirt_qemu.qemuAgentCommand(dom, json.dumps(
-        {'execute': 'guest-exec', 'arguments':
-         {'path': command, 'arg': flags, 'capture-output': True}}), 60, 0)
-    exec_status = libvirt_qemu.qemuAgentCommand(dom, json.dumps(
-        {'execute': 'guest-exec-status', 'arguments':
-         {'pid': json.loads(exec)['return']['pid']}}), 60, 0)
-    while not (json.loads(exec_status)['return']['exited']):
-        print('please wait...')
-        time.sleep(2)
-        exec_status = libvirt_qemu.qemuAgentCommand(dom, json.dumps(
-            {'execute': 'guest-exec-status', 'arguments':
-             {'pid': json.loads(exec)['return']['pid']}}), 60, 0)
-
-    print('exitcode:', json.loads(exec_status)['return']['exitcode'])
-    print(base64.b64decode(json.loads(exec_status)
-                           ['return']['out-data'])[:-1].decode())
+    flags = (args.command.split()[1:] if len(args.command.split()) > 1 else [])
+    pid = send_command('guest-exec',
+                       {'path': args.command.split()[0],
+                        'arg': flags, 'capture-output': True})['pid']
+    while not ((out := send_command('guest-exec-status',
+                                    {'pid': pid}))['exited']):
+        print('please wait..')
+        time.sleep(1)
+    out_type = ('out-data' if out.get('out-data') else 'err-data')
+    print('out: "{0}"'.format(base64.b64decode(out[out_type])[:-1].decode()
+                              if out.get(out_type) else ""))
+    print(f'exitcode: {out["exitcode"]}')
 
 
 def write_file(args):
-    host_file = args.host_file
-    if host_file[0] != '/':
-        host_file = f'{os.getcwd()}/{host_file}'
-    buf_file = str(base64.b64encode(bytes(open(host_file).read(),
-                                          'utf-8')))[2:-1]
-    dom = connect_to_vm(args.vm_id)
-    open_file = libvirt_qemu.qemuAgentCommand(dom, json.dumps(
-        {'execute': 'guest-file-open', 'arguments':
-         {'path': args.remote_file, 'mode': 'w+'}}), 30, 0)
-    print(open_file)
-    handle = json.loads(open_file)['return']
-    write_file = libvirt_qemu.qemuAgentCommand(dom, json.dumps(
-        {'execute': 'guest-file-write', 'arguments':
-         {'handle': handle, 'buf-b64': buf_file}}), 30, 0)
-    print(write_file)
-    close_file = libvirt_qemu.qemuAgentCommand(dom, json.dumps(
-        {'execute': 'guest-file-close', 'arguments':
-         {'handle': handle}}), 30, 0)
-    print(close_file)
+    file = str(base64.b64encode(bytes(open(args.host_file).read(),
+                                      'utf-8')))[2:-1]
+    handle = send_command('guest-file-open',
+                          {'path': args.remote_file, 'mode': 'w+'})
+    commands = {'guest-file-write': {'handle': handle, 'buf-b64': file},
+                'guest-file-close': {'handle': handle}}
+    for i, j in commands.items():
+        send_command(i, j)
 
 
 def parse_args():
@@ -74,9 +55,6 @@ def parse_args():
     return parser.parse_args()
 
 
-def main():
+if __name__ == "__main__":
     args = parse_args()
     args.func(args)
-
-
-main()
