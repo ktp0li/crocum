@@ -1,18 +1,14 @@
+#!/usr/bin/env python3
 import argparse
 import socket
 import base64
 import json
 
 
-def connect_to_socket():
+def send_to_socket(command, arguments):
+    command = json.dumps({'execute': command, 'arguments': arguments})
     client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     client.connect(f"/var/run/qemu-server/{args.vm_id}.qga")
-    return client
-
-
-def send_to_socket(command, args):
-    command = json.dumps({'execute': command, 'arguments': args})
-    client = connect_to_socket()
     client.send(command.encode())
     answer = client.recv(2048).decode()
     return json.loads(answer)['return']
@@ -25,7 +21,8 @@ def qemu_write_file(args):
                                                 'mode': 'w+'})
     commands = {'guest-file-write': {'handle': handle, 'buf-b64': file},
                 'guest-file-close': {'handle': handle}}
-    [send_to_socket(i, j) for i, j in commands.items()]
+    for i, j in commands.items():
+        send_to_socket(i, j)
 
 
 def qemu_execute_command(args):
