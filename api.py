@@ -23,15 +23,15 @@ class UserAPI(MethodView):
             stdout = self.cli.workspace('list').value
             return stdout.split('\n')
         else:
-            self.cli.workspace('select', user_id)
-            self.cli.state('list')
+            self.cli.workspace('select', str(user_id))
+            return self.cli.state('list').value
 
     # deploy lab
     def post(self):
         user_id = str(1)
         if self.cli.workspace('new', user_id).retcode in [0, 2]:
             self.thread = Thread(target=(lambda userid: self.cli.apply(
-                var={'user-id': userid}))(user_id))
+                var={'user-id': userid})), args=(user_id), daemon=True)
             self.thread.start()
             return 'Lab is creating...', 202
         else:
