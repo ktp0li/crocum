@@ -38,8 +38,14 @@ class UserAPI(MethodView):
             return 'Lab is exist', 409
 
     # destroy lab
-    def delete(self):
-        pass
+    def delete(self, user_id):
+        if self.cli.workspace('select', str(user_id)).retcode in [0, 2]:
+            self.thread = Thread(target=(lambda userid: self.cli.destroy(
+                var={'user-id': userid})), args=(str(user_id)), daemon=True)
+            self.thread.start()
+            return 'Lab is destroying...', 202
+        else:
+            return 'Lab is not exist', 409
 
 
 user_view = UserAPI.as_view('user_api')
@@ -47,8 +53,7 @@ app.add_url_rule('/api/lab1', defaults={'user_id': None},
                  view_func=user_view, methods=['GET', ])
 app.add_url_rule('/api/lab1', view_func=user_view, methods=['POST', ])
 app.add_url_rule('/api/lab1/<int:user_id>', view_func=user_view,
-                 methods=['GET', ])
-
+                 methods=['GET', 'DELETE', ])
 # @app.route('/api/labs', methods=['GET'])
 # def list_labs():
 #     pass
