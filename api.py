@@ -90,28 +90,48 @@ class UserAPI(MethodView):
     def get(self, user_id):
         if user_id is None:
             users = User.query.all()
-            return {'users': [{'id': user.id,
-                               'username': user.username,
-                               'email': user.email} for user in users]}
+            return {'status': 200, 'message': {'users':
+                                               [{'id': user.id,
+                                                 'username': user.username,
+                                                 'email': user.email}
+                                                for user in users]}}
         else:
-            user = db.session.get(User, user_id)
-            if user is None:
+            if (user := db.session.get(User, user_id)) is None:
                 return {'status': 404, 'message': 'User not found'}
             else:
-                return {'user': {'id': user.id,
-                                 'username': user.username,
-                                 'email': user.email}}
+                return {'status': 200, 'message': {'user':
+                                                   {'id': user.id,
+                                                    'username': user.username,
+                                                    'email': user.email}}}
 
     def post(self):
         data = request.get_json()
         user = User(username=data['username'], email=data['email'])
         db.session.add(user)
         db.session.commit()
-        return {'id': user.id, 'username': user.username, 'email': user.email}
+        return {'status': 200, 'message':
+                {'user': {'id': user.id,
+                          'username': user.username,
+                          'email': user.email}}}
+
+    def put(self, user_id):
+        if (user := db.session.get(User, user_id)) is None:
+            return {'status': 404, 'message': 'User not found'}
+        else:
+            data = request.get_json()
+            if (email := data.get('email')) is not None:
+                user.email = email
+            if (username := data.get('username')) is not None:
+                user.username = username
+            db.session.add(user)
+            db.session.commit()
+            return {'status': 200, 'message': {'user':
+                                               {'id': user.id,
+                                                'username': user.username,
+                                                'email': user.email}}}
 
     def delete(self, user_id):
-        user = db.session.get(User, user_id)
-        if user is None:
+        if (user := db.session.get(User, user_id)) is None:
             return {'status': 404, 'message': 'User not found'}
         else:
             db.session.delete(user)
@@ -122,11 +142,9 @@ class UserAPI(MethodView):
 user_view = UserAPI.as_view('user_api')
 app.add_url_rule('/api/user/', view_func=user_view, methods=['GET', ],
                  defaults={'user_id': None})
-app.add_url_rule('/api/user/<int:user_id>', view_func=user_view,
-                 methods=['GET', ])
 app.add_url_rule('/api/user/', view_func=user_view, methods=['POST', ])
 app.add_url_rule('/api/user/<int:user_id>',
-                 view_func=user_view, methods=['DELETE', ])
+                 view_func=user_view, methods=['DELETE', 'GET', 'PUT'])
 
 # @app.route('/api/lab1/check', methods=['GET'])
 # def check_lab():
