@@ -1,5 +1,5 @@
 #!flask/bin/python
-from flask import Flask
+from flask import Flask, request
 from flask.views import MethodView
 from libterraform import TerraformCommand
 from threading import Thread
@@ -38,21 +38,28 @@ def api_creation(lab_name):
                 self.cli.workspace('select', str(user_id))
                 return self.cli.state('list').value
 
-        # def for ferraform apply/destroy
+        # func for ferraform apply/destroy
         def change_lab(self, action, userid):
             self.cli.workspace('select', userid)
             option = {'var': f'user-id={userid}', 'auto-approve': ...}
             self.cli.run(action, option)
             self.cli.workspace('select', 'default')
 
+        def create_user(self, username, email):
+            user = User(username=username, email=email)
+            db.session.add(user)
+            db.session.commit()
+            return user.id
+
         # deploy lab
         def post(self):
-            user_id = str(1)
+            data = request.get_json()
+            user_id = str(self.create_user(data['username'], data['email']))
             if self.cli.workspace('new', user_id).retcode in (0, 2):
                 self.thread = Thread(target=self.change_lab,
                                      args=('apply', user_id), daemon=True)
                 self.thread.start()
-                return {'status': 202,
+                return {'status': 202, 
                         'message': f'{lab_name} is creating...'}, 202
             else:
                 return {'status': 409,
