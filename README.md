@@ -1,23 +1,36 @@
-# Crocum
-## RU:
-### Концепция:
-Архитектура и API для сервиса по подготовке сетевых администраторов.
-### Реализация:
-Системных администраторов обычно обучают на лабораторных - пуле виртуальных машин, изолированных от окружающего мира и требующих настройки. Проверка этих лабораторных обычно проводится мануальная. Моя идея заключается в том, чтобы полностью автоматизировать процесс разворачивания, удаления и тестирования виртуалок. За основу берется OpenNebula, облачная система, масштабируемая как горизонтально, так и вертикально. Для создания и уничтожения лабораторных используется Terraform, для их проверки - PyTest тесты, для засыла тестов в виртуалки - QEMU Guest Agent. Весь функционал завернут в RESTful API, написанный на Flask.
-### Cхема тестовой лабораторной:
-![alt text](netplan.svg)
-### Todo:
-- [X] Написать tf-конфиги и отладить
-- [X] Разобраться с QEMU guest agent и написать скрипты для автоматизации работы с ним
-- [X] Написать пробный тест, проверить на работоспособность
-- [X] Написать базовый рабочий API, создающий и уничтожающий лабораторку
-- [X] Придумать название для проекта
-- [X] Добавить БД для работы с пользователями и лабами
-- [ ] Нарисовать лого
-- [ ] Написать тесты для лабораторной
-- [ ] Написать документацию для лабораторной
-- [ ] Написать обвязку для работы контекстуализации Opennebula на OPNsense
-- [ ] Поднять в кластер в облаке с Open vSwitch и Seph
-- [ ] Завернуть в Docker
-- [ ] Закончить образы ОС
-- [ ] Создать примитивный фронт
+# Crocum [WIP]
+## TL:DR
+Crocum is a PaaS designed to train network engineers on automatically created, deleted, and checked by terms of reference network labs.
+Educational platforms can access Crocum via the RESTful API written on Flask.
+
+Test instance: crocum.p0li.site [WIP, ip whitelist]
+
+## Why?
+~~Because I can.~~ None of the existing solutions on the market, whether for personal or corporate use, can automate the checking of labs. I was very sad to see my teachers spending hours on manual checks. Crocum is suitable for both personal and corporate use, in which case I take care of the servers, the client only needs to use the provided API. 
+
+## Architerture
+<img src="./pics/architecture.png" width="500"/>
+
+- #### OpenNebula
+Used for globally control VMs, nets, storage, etc on multiple hosts. It is also ideal for horizontal scaling.
+- #### Terraform
+ Used for declarative description of labs infra (VMs, nets, address ranges, templates, etc).
+- #### PyTest & QEMU Guest Agent
+VMs are in isolated networks, making it impossible to use Ansible/Salt. So I decided to use for checking purposes tests written on PyTest with module testinfra. Then tests are run on VMs using QEMU Guest Agent, tracing their output.
+- #### Flask
+Crocum's final form, allowing create, destroy and check labs by one request. PostgreSQL is used for storing info about users and labs.
+
+## Example of lab (named lab1)
+<img src="./pics/netplan.svg" width="400"/>
+
+Terraform configs for this lab are stored in ./terraform/lab1, tests are stored in ./tests
+
+## TODO
+- [X] Write a delightful README
+- [ ] Finalize qemu-ga module for API
+- [ ] DOCKERIZE!!111!!
+- [ ] Deploy a pretty cluster of >= 3 OpenNebula instances 
+- [ ] Fix phantom problem with Terraform (troubles with OpenNebula provider???)
+- [ ] Draw cute logo
+- [ ] Maybe create simple frontend??? 
+
