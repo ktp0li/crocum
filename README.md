@@ -27,6 +27,7 @@ Terraform configs for this lab are stored in ./terraform/lab1, tests are stored 
 
 ## TODO
 - [X] Write a delightful README
+- [X] Deploy Crocum on my home server
 - [ ] Finalize qemu-ga module for API
 - [ ] DOCKERIZE!!111!!
 - [ ] Deploy a pretty cluster of >= 3 OpenNebula instances 
