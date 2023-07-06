@@ -1,0 +1,4 @@
+fastapi
+libterraform
+sqlalchemy
+pydantic
