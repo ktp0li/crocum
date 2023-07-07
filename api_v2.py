@@ -1,7 +1,7 @@
 import os
 import base64
 import binascii
-from typing import List
+from typing import List, Dict, Union
 
 from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
@@ -41,7 +41,7 @@ class LabRespPost(BaseModel):
 class LabRespGet(BaseModel):
     lab_id: int
     lab_name: str
-    configs: List[str]
+    configs: Union[List[str], Dict[str, str]]
 
 
 # db models
@@ -91,12 +91,41 @@ async def get_labs() -> List[LabRespGet]:
     ]
 
 
+@app.get("/lab/{id}")
+async def get_lab_by_id(lab_id: int) -> LabRespGet:
+    lab = session.query(Labs).filter_by(lab_id=lab_id).first()
+    if not lab:
+        raise HTTPException(404, f"Lab with id {lab_id} not found")
+    configs = {
+        i.config_file_name: i.config_file
+        for i in session.query(Configs).filter_by(lab_id=id).all()
+    }
+    return LabRespGet(lab_id=lab_id, lab_name=lab.lab_name, configs=configs)
+
+
 @app.post("/labs/")
 async def post_lab(lab: LabRespPost) -> LabRespPost:
     entry = Labs(lab_name=lab.lab_name)
     session.add(entry)
     session.commit()
     return lab
+
+
+@app.put("/labs/")
+async def put_lab(lab_id: int, lab_name: str) -> LabRespGet:
+    entry = session.query(Labs).filter_by(lab_id=lab_id).first()
+    if not entry:
+        raise HTTPException(404, f"Lab with id {lab_id} not found")
+
+    entry.lab_name = lab_name
+    session.add(entry)
+    session.commit()
+    configs = {
+        i.config_file_name: i.config_file
+        for i in session.query(Configs).filter_by(lab_id=lab_id).all()
+    }
+
+    return LabRespGet(lab_id=lab_id, lab_name=lab_name, configs=configs)
 
 
 @app.post("labs/configs/")
