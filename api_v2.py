@@ -1,7 +1,13 @@
 import os
+import base64
+import binascii
 
-from fastapi import FastAPI
-from sqlalchemy import create_engine, Column, Integer, String, LargeBinary, ForeignKey
+from fastapi import FastAPI, HTTPException
+from fastapi.exceptions import RequestValidationError
+from pydantic import BaseModel
+from pydantic.error_wrappers import ErrorWrapper
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 dbuser, dbpass, dbhost, dbport, dbname = (
@@ -19,6 +25,18 @@ session = DBSession()
 
 app = FastAPI()
 
+
+class ConfigRespPost(BaseModel):
+    lab_id: int
+    config_file_name: str
+    config_file: str
+
+
+class LabRespPost(BaseModel):
+    lab_name: str
+
+
+# db models
 class Users(Base):
     __tablename__ = "users"
     user_id = Column(Integer, primary_key=True)
@@ -34,14 +52,56 @@ class Labs(Base):
 
 class Configs(Base):
     __tablename__ = "configs"
-    config_file = Column(LargeBinary, nullable=False)
-    lab = Column(ForeignKey("labs.lab_id"))
+    config_id = Column(Integer, primary_key=True)
+    config_file_name = Column(String, nullable=False)
+    config_file = Column(String, nullable=False)
+    lab_id = Column(ForeignKey("labs.lab_id"))
 
 
 class LabInstances(Base):
     __tablename__ = "lab_instances"
     instance_id = Column(Integer, primary_key=True)
-    lab = Column(ForeignKey("labs.lab_id"))
-    user = Column(ForeignKey("users.user_id"))
+    lab_id = Column(ForeignKey("labs.lab_id"))
+    user_id = Column(ForeignKey("users.user_id"))
     resources = Column(String)
     state = Column(String)
+
+
+@app.post("/labs/")
+async def post_lab(lab: LabRespPost) -> LabRespPost:
+    entry = Labs(lab_name=lab.lab_name)
+    session.add(entry)
+    session.commit()
+    return lab
+
+
+@app.post("/configs/")
+async def post_config(config: ConfigRespPost) -> ConfigRespPost:
+    try:
+        base64.b64decode(config.config_file.encode())
+    except binascii.Error as exc:
+        raise RequestValidationError(
+            [
+                ErrorWrapper(
+                    ValueError("config_file must be base64 string"),
+                    ("body", "config_file"),
+                )
+            ]
+        ) from exc
+
+    entry = Configs(
+        config_file_name=config.config_file_name,
+        config_file=config.config_file,
+        lab_id=config.lab_id,
+    )
+    try:
+        session.add(entry)
+        session.commit()
+    except IntegrityError as exc:
+        session.rollback()
+        raise HTTPException(404, f"Lab with id {config.lab_id} not found") from exc
+    return config
+
+
+if __name__ == "__main__":
+    Base.metadata.create_all(engine)
