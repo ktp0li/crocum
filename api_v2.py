@@ -1,6 +1,7 @@
 import os
 import base64
 import binascii
+from typing import List
 
 from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
@@ -26,6 +27,7 @@ session = DBSession()
 app = FastAPI()
 
 
+# fastapi models
 class ConfigRespPost(BaseModel):
     lab_id: int
     config_file_name: str
@@ -34,6 +36,12 @@ class ConfigRespPost(BaseModel):
 
 class LabRespPost(BaseModel):
     lab_name: str
+
+
+class LabRespGet(BaseModel):
+    lab_id: int
+    lab_name: str
+    configs: List[str]
 
 
 # db models
@@ -67,6 +75,22 @@ class LabInstances(Base):
     state = Column(String)
 
 
+@app.get("/labs/")
+async def get_labs() -> List[LabRespGet]:
+    labs = session.query(Labs).all()
+    configs = session.query(Configs)
+    return [
+        LabRespGet(
+            lab_id=i.lab_id,
+            lab_name=i.lab_name,
+            configs=[
+                j.config_file_name for j in configs.filter_by(lab_id=i.lab_id).all()
+            ],
+        )
+        for i in labs
+    ]
+
+
 @app.post("/labs/")
 async def post_lab(lab: LabRespPost) -> LabRespPost:
     entry = Labs(lab_name=lab.lab_name)
@@ -75,8 +99,9 @@ async def post_lab(lab: LabRespPost) -> LabRespPost:
     return lab
 
 
-@app.post("/configs/")
+@app.post("labs/configs/")
 async def post_config(config: ConfigRespPost) -> ConfigRespPost:
+    # base64 validation for config_file
     try:
         base64.b64decode(config.config_file.encode())
     except binascii.Error as exc:
@@ -89,11 +114,13 @@ async def post_config(config: ConfigRespPost) -> ConfigRespPost:
             ]
         ) from exc
 
+    # add entry to db
     entry = Configs(
         config_file_name=config.config_file_name,
         config_file=config.config_file,
         lab_id=config.lab_id,
     )
+
     try:
         session.add(entry)
         session.commit()
